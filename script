@@ -107,7 +107,7 @@ local function farmTickets()
                         task.wait(1)
                         
                         -- Телепорт на 500 блоков вверх
-                        local safePos = targetPos + Vector3.new(0, 500, 0)
+                        local safePos = targetPos + Vector3.new(0, 850, 0)
                         hrp.CFrame = CFrame.new(safePos)
                         
                         -- Размещение платформы
