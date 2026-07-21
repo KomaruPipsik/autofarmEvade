@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
 
@@ -7,7 +8,8 @@ local player = Players.LocalPlayer
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EvadeAutoFarm"
 screenGui.ResetOnSpawn = false
--- Защита интерфейса при использовании экзекьюторов
+
+-- Защита интерфейса для экзекьюторов
 if gethui then
     screenGui.Parent = gethui()
 elseif syn and syn.protect_gui then
@@ -17,13 +19,14 @@ else
     screenGui.Parent = player:WaitForChild("PlayerGui")
 end
 
+-- Основная рамка меню
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Size = UDim2.new(0, 200, 0, 120) -- Увеличил высоту меню для второй кнопки
 frame.Position = UDim2.new(0.5, -100, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true -- Позволяет перетаскивать меню по экрану
+frame.Draggable = true -- Можно перетаскивать
 frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
@@ -36,6 +39,7 @@ title.Font = Enum.Font.SourceSansBold
 title.TextSize = 16
 title.Parent = frame
 
+-- Кнопка Авто-фарма
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(1, -20, 0, 35)
 toggleButton.Position = UDim2.new(0, 10, 0, 35)
@@ -46,11 +50,23 @@ toggleButton.Font = Enum.Font.SourceSansBold
 toggleButton.TextSize = 18
 toggleButton.Parent = frame
 
--- Переменные для логики работы
+-- Кнопка Анти-АФК
+local antiAfkButton = Instance.new("TextButton")
+antiAfkButton.Size = UDim2.new(1, -20, 0, 35)
+antiAfkButton.Position = UDim2.new(0, 10, 0, 75)
+antiAfkButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+antiAfkButton.Text = "Anti-AFK: OFF"
+antiAfkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+antiAfkButton.Font = Enum.Font.SourceSansBold
+antiAfkButton.TextSize = 18
+antiAfkButton.Parent = frame
+
+-- Переменные состояний
 local autoFarmEnabled = false
+local antiAfkEnabled = false
 local platform = nil
 
--- Функция для создания или обновления платформы
+-- Функция для получения горизонтальной платформы
 local function getPlatform()
     if not platform or not platform.Parent then
         platform = Instance.new("Part")
@@ -64,14 +80,13 @@ local function getPlatform()
     return platform
 end
 
--- Основная функция фарма
+-- Логика авто-фарма
 local function farmTickets()
     while autoFarmEnabled do
         local character = player.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
             local hrp = character.HumanoidRootPart
             
-            -- Проверяем наличие папки с тикетами
             local effectsFolder = Workspace:FindFirstChild("Effects")
             local ticketsFolder = effectsFolder and effectsFolder:FindFirstChild("Tickets")
 
@@ -80,33 +95,30 @@ local function farmTickets()
                 local foundTicket = false
 
                 for _, ticket in pairs(tickets) do
-                    -- Если скрипт выключили во время цикла, прерываем
                     if not autoFarmEnabled then break end 
                     
                     if ticket.Name == "Visual" then
                         foundTicket = true
                         
-                        -- 1. Телепорт к модельке Visual
-                        local targetCFrame = ticket:GetPivot()
-                        hrp.CFrame = targetCFrame
+                        -- 1. Телепорт к тикету (сброс вращения, только позиция)
+                        local targetPos = ticket:GetPivot().Position
+                        hrp.CFrame = CFrame.new(targetPos)
                         
-                        -- Ждем немного, чтобы игра засчитала подбор тикета
-                        task.wait(0.3)
+                        -- Ждем 1 секунду, чтобы сервер 100% зарегистрировал подбор
+                        task.wait(1)
                         
                         -- 2. Телепорт на 500 блоков вверх
-                        local safeCFrame = targetCFrame + Vector3.new(0, 500, 0)
-                        hrp.CFrame = safeCFrame
+                        local safePos = targetPos + Vector3.new(0, 500, 0)
+                        hrp.CFrame = CFrame.new(safePos)
                         
-                        -- 3. Размещение платформы ровно под ногами
+                        -- 3. Размещение платформы строго горизонтально
                         local plat = getPlatform()
-                        plat.CFrame = safeCFrame - Vector3.new(0, 3.5, 0)
+                        plat.CFrame = CFrame.new(safePos - Vector3.new(0, 3.5, 0))
                         
-                        -- Пауза перед следующим тикетом, чтобы античит не кикнул за телепорт
                         task.wait(1)
                     end
                 end
                 
-                -- Если тикетов на карте сейчас нет, просто ждем их появления стоя на безопасной платформе
                 if not foundTicket and autoFarmEnabled then
                     task.wait(0.5)
                 end
@@ -119,7 +131,7 @@ local function farmTickets()
     end
 end
 
--- Обработчик нажатия на кнопку
+-- Обработка кнопки Авто-фарма
 toggleButton.MouseButton1Click:Connect(function()
     autoFarmEnabled = not autoFarmEnabled
     
@@ -130,11 +142,44 @@ toggleButton.MouseButton1Click:Connect(function()
     else
         toggleButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
         toggleButton.Text = "Auto Farm: OFF"
-        
-        -- Удаляем платформу, когда автофарм выключен
         if platform then
             platform:Destroy()
             platform = nil
         end
+    end
+end)
+
+-- Обработка кнопки Анти-АФК
+antiAfkButton.MouseButton1Click:Connect(function()
+    antiAfkEnabled = not antiAfkEnabled
+    
+    if antiAfkEnabled then
+        antiAfkButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        antiAfkButton.Text = "Anti-AFK: ON"
+    else
+        antiAfkButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        antiAfkButton.Text = "Anti-AFK: OFF"
+    end
+end)
+
+-- Цикл Анти-АФК: заставляет персонажа прыгать раз в 14 минут
+task.spawn(function()
+    while true do
+        task.wait(14 * 60) -- Ждем ровно 14 минут
+        if antiAfkEnabled then
+            local character = player.Character
+            if character and character:FindFirstChild("Humanoid") then
+                character.Humanoid.Jump = true
+            end
+        end
+    end
+end)
+
+-- Дополнительная защита Анти-АФК от встроенного кика Роблокса
+player.Idled:Connect(function()
+    if antiAfkEnabled then
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     end
 end)
