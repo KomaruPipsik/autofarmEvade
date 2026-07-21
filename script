@@ -66,7 +66,7 @@ local autoFarmEnabled = false
 local antiAfkEnabled = false
 local platform = nil
 
--- платформа
+-- Платформа
 local function getPlatform()
     if not platform or not platform.Parent then
         platform = Instance.new("Part")
@@ -80,6 +80,36 @@ local function getPlatform()
     return platform
 end
 
+-- Функция поиска свободного места (чтобы не телепортировало в текстуры)
+local function getSafePosition(targetPos)
+    local params = OverlapParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    
+    -- Исключаем платформу и персонажа из проверки на "занятость"
+    local ignoreList = {getPlatform()}
+    if player.Character then
+        table.insert(ignoreList, player.Character)
+    end
+    params.FilterDescendantsInstances = ignoreList
+
+    local currentPos = targetPos
+    local maxAttempts = 20 -- Защита от бесконечного цикла
+    local attempts = 0
+    
+    while attempts < maxAttempts do
+        -- Проверяем куб 10x10x10 вокруг точки
+        local parts = Workspace:GetPartBoundsInBox(CFrame.new(currentPos), Vector3.new(10, 10, 10), params)
+        if #parts == 0 then
+            break -- Место свободно
+        else
+            currentPos = currentPos + Vector3.new(0, 50, 0) -- Поднимаемся на 50 блоков и проверяем снова
+            attempts = attempts + 1
+        end
+    end
+    
+    return currentPos
+end
+
 -- Логика авто фарма
 local function farmTickets()
     while autoFarmEnabled do
@@ -90,9 +120,10 @@ local function farmTickets()
             local effectsFolder = Workspace:FindFirstChild("Effects")
             local ticketsFolder = effectsFolder and effectsFolder:FindFirstChild("Tickets")
 
+            local foundTicket = false
+
             if ticketsFolder then
                 local tickets = ticketsFolder:GetChildren()
-                local foundTicket = false
 
                 for _, ticket in pairs(tickets) do
                     if not autoFarmEnabled then break end 
@@ -100,36 +131,57 @@ local function farmTickets()
                     if ticket.Name == "Visual" then
                         foundTicket = true
                         
-                        --  Телепорт к тикету
+                        -- Телепорт к тикету
                         local targetPos = ticket:GetPivot().Position
                         hrp.CFrame = CFrame.new(targetPos)
                         
                         task.wait(1)
                         
-                        -- 1. Телепорт на 750 блоков вверх
-                        local midPos = targetPos + Vector3.new(0, 750, 0)
+                        -- 1. Телепорт на 750 блоков вверх (с проверкой на пустоту)
+                        local midPos = getSafePosition(targetPos + Vector3.new(0, 750, 0))
                         hrp.CFrame = CFrame.new(midPos)
                         
-                        -- Пауза 0.7 секунд
                         task.wait(0.7)
                         
-                        -- 2. Телепорт еще на 150 блоков вверх
-                        local finalPos = midPos + Vector3.new(0, 150, 0)
+                        -- 2. Телепорт еще на 150 блоков вверх (с проверкой на пустоту)
+                        local finalPos = getSafePosition(midPos + Vector3.new(0, 150, 0))
                         hrp.CFrame = CFrame.new(finalPos)
                         
-                        -- Размещение платформы под финальной точкой
+                        -- Размещение платформы
                         local plat = getPlatform()
                         plat.CFrame = CFrame.new(finalPos - Vector3.new(0, 3.5, 0))
                         
                         task.wait(1)
+                        break -- Прерываем цикл, чтобы начать сканировать заново
                     end
                 end
+            end
+            
+            -- Если тикетов нет (или идет перерыв между раундами) -> режим уклонения
+            if not foundTicket and autoFarmEnabled then
+                -- Убеждаемся, что мы находимся минимум на 750 блоков выше центра карты
+                local currentY = math.max(hrp.Position.Y, 750) 
+                local basePos = Vector3.new(hrp.Position.X, currentY, hrp.Position.Z)
                 
-                if not foundTicket and autoFarmEnabled then
-                    task.wait(0.5)
-                end
-            else
-                task.wait(1)
+                -- Возможные направления для резкого рывка на 25 блоков
+                local directions = {
+                    Vector3.new(25, 0, 0),   -- вправо
+                    Vector3.new(-25, 0, 0),  -- влево
+                    Vector3.new(0, 25, 0),   -- вверх
+                    Vector3.new(0, -25, 0),  -- вниз
+                    Vector3.new(0, 0, 25),   -- назад
+                    Vector3.new(0, 0, -25)   -- вперед
+                }
+                
+                local randomOffset = directions[math.random(1, #directions)]
+                local dodgePos = getSafePosition(basePos + randomOffset)
+                
+                -- Телепортируем персонажа и платформу
+                hrp.CFrame = CFrame.new(dodgePos)
+                local plat = getPlatform()
+                plat.CFrame = CFrame.new(dodgePos - Vector3.new(0, 3.5, 0))
+                
+                task.wait(0.5) -- Ждем 0.5 секунд перед следующим прыжком
             end
         else
             task.wait(1)
