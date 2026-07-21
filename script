@@ -106,13 +106,20 @@ local function farmTickets()
                         
                         task.wait(1)
                         
-                        -- Телепорт на 500 блоков вверх
-                        local safePos = targetPos + Vector3.new(0, 850, 0)
-                        hrp.CFrame = CFrame.new(safePos)
+                        -- 1. Телепорт на 750 блоков вверх
+                        local midPos = targetPos + Vector3.new(0, 750, 0)
+                        hrp.CFrame = CFrame.new(midPos)
                         
-                        -- Размещение платформы
+                        -- Пауза 0.7 секунд
+                        task.wait(0.7)
+                        
+                        -- 2. Телепорт еще на 150 блоков вверх
+                        local finalPos = midPos + Vector3.new(0, 150, 0)
+                        hrp.CFrame = CFrame.new(finalPos)
+                        
+                        -- Размещение платформы под финальной точкой
                         local plat = getPlatform()
-                        plat.CFrame = CFrame.new(safePos - Vector3.new(0, 3.5, 0))
+                        plat.CFrame = CFrame.new(finalPos - Vector3.new(0, 3.5, 0))
                         
                         task.wait(1)
                     end
