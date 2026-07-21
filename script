@@ -1,0 +1,140 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+
+-- Создаем интерфейс (мини-меню)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EvadeAutoFarm"
+screenGui.ResetOnSpawn = false
+-- Защита интерфейса при использовании экзекьюторов
+if gethui then
+    screenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(screenGui)
+    screenGui.Parent = game:GetService("CoreGui")
+else
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Position = UDim2.new(0.5, -100, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true -- Позволяет перетаскивать меню по экрану
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 25)
+title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+title.BorderSizePixel = 0
+title.Text = "Evade Ticket Farm"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 16
+title.Parent = frame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(1, -20, 0, 35)
+toggleButton.Position = UDim2.new(0, 10, 0, 35)
+toggleButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+toggleButton.Text = "Auto Farm: OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextSize = 18
+toggleButton.Parent = frame
+
+-- Переменные для логики работы
+local autoFarmEnabled = false
+local platform = nil
+
+-- Функция для создания или обновления платформы
+local function getPlatform()
+    if not platform or not platform.Parent then
+        platform = Instance.new("Part")
+        platform.Name = "SafePlatform"
+        platform.Size = Vector3.new(15, 1, 15)
+        platform.Anchored = true
+        platform.Transparency = 0.5
+        platform.BrickColor = BrickColor.new("Bright blue")
+        platform.Parent = Workspace
+    end
+    return platform
+end
+
+-- Основная функция фарма
+local function farmTickets()
+    while autoFarmEnabled do
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local hrp = character.HumanoidRootPart
+            
+            -- Проверяем наличие папки с тикетами
+            local effectsFolder = Workspace:FindFirstChild("Effects")
+            local ticketsFolder = effectsFolder and effectsFolder:FindFirstChild("Tickets")
+
+            if ticketsFolder then
+                local tickets = ticketsFolder:GetChildren()
+                local foundTicket = false
+
+                for _, ticket in pairs(tickets) do
+                    -- Если скрипт выключили во время цикла, прерываем
+                    if not autoFarmEnabled then break end 
+                    
+                    if ticket.Name == "Visual" then
+                        foundTicket = true
+                        
+                        -- 1. Телепорт к модельке Visual
+                        local targetCFrame = ticket:GetPivot()
+                        hrp.CFrame = targetCFrame
+                        
+                        -- Ждем немного, чтобы игра засчитала подбор тикета
+                        task.wait(0.3)
+                        
+                        -- 2. Телепорт на 500 блоков вверх
+                        local safeCFrame = targetCFrame + Vector3.new(0, 500, 0)
+                        hrp.CFrame = safeCFrame
+                        
+                        -- 3. Размещение платформы ровно под ногами
+                        local plat = getPlatform()
+                        plat.CFrame = safeCFrame - Vector3.new(0, 3.5, 0)
+                        
+                        -- Пауза перед следующим тикетом, чтобы античит не кикнул за телепорт
+                        task.wait(1)
+                    end
+                end
+                
+                -- Если тикетов на карте сейчас нет, просто ждем их появления стоя на безопасной платформе
+                if not foundTicket and autoFarmEnabled then
+                    task.wait(0.5)
+                end
+            else
+                task.wait(1)
+            end
+        else
+            task.wait(1)
+        end
+    end
+end
+
+-- Обработчик нажатия на кнопку
+toggleButton.MouseButton1Click:Connect(function()
+    autoFarmEnabled = not autoFarmEnabled
+    
+    if autoFarmEnabled then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        toggleButton.Text = "Auto Farm: ON"
+        task.spawn(farmTickets)
+    else
+        toggleButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        toggleButton.Text = "Auto Farm: OFF"
+        
+        -- Удаляем платформу, когда автофарм выключен
+        if platform then
+            platform:Destroy()
+            platform = nil
+        end
+    end
+end)
