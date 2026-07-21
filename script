@@ -4,7 +4,7 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
 
--- Создаем интерфейс (мини-меню)
+-- мини меню
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EvadeAutoFarm"
 screenGui.ResetOnSpawn = false
@@ -21,12 +21,12 @@ end
 
 -- Основная рамка меню
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 120) -- Увеличил высоту меню для второй кнопки
+frame.Size = UDim2.new(0, 200, 0, 120)
 frame.Position = UDim2.new(0.5, -100, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true -- Можно перетаскивать
+frame.Draggable = true -- перетаскивать
 frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
@@ -39,7 +39,7 @@ title.Font = Enum.Font.SourceSansBold
 title.TextSize = 16
 title.Parent = frame
 
--- Кнопка Авто-фарма
+-- Кнопка авто фарма
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(1, -20, 0, 35)
 toggleButton.Position = UDim2.new(0, 10, 0, 35)
@@ -50,7 +50,7 @@ toggleButton.Font = Enum.Font.SourceSansBold
 toggleButton.TextSize = 18
 toggleButton.Parent = frame
 
--- Кнопка Анти-АФК
+-- Кнопка Анти АФК
 local antiAfkButton = Instance.new("TextButton")
 antiAfkButton.Size = UDim2.new(1, -20, 0, 35)
 antiAfkButton.Position = UDim2.new(0, 10, 0, 75)
@@ -66,7 +66,7 @@ local autoFarmEnabled = false
 local antiAfkEnabled = false
 local platform = nil
 
--- Функция для получения горизонтальной платформы
+-- платформа
 local function getPlatform()
     if not platform or not platform.Parent then
         platform = Instance.new("Part")
@@ -80,7 +80,7 @@ local function getPlatform()
     return platform
 end
 
--- Логика авто-фарма
+-- Логика авто фарма
 local function farmTickets()
     while autoFarmEnabled do
         local character = player.Character
@@ -100,18 +100,17 @@ local function farmTickets()
                     if ticket.Name == "Visual" then
                         foundTicket = true
                         
-                        -- 1. Телепорт к тикету (сброс вращения, только позиция)
+                        --  Телепорт к тикету
                         local targetPos = ticket:GetPivot().Position
                         hrp.CFrame = CFrame.new(targetPos)
                         
-                        -- Ждем 1 секунду, чтобы сервер 100% зарегистрировал подбор
                         task.wait(1)
                         
-                        -- 2. Телепорт на 500 блоков вверх
+                        -- Телепорт на 500 блоков вверх
                         local safePos = targetPos + Vector3.new(0, 500, 0)
                         hrp.CFrame = CFrame.new(safePos)
                         
-                        -- 3. Размещение платформы строго горизонтально
+                        -- Размещение платформы
                         local plat = getPlatform()
                         plat.CFrame = CFrame.new(safePos - Vector3.new(0, 3.5, 0))
                         
@@ -131,7 +130,7 @@ local function farmTickets()
     end
 end
 
--- Обработка кнопки Авто-фарма
+-- Обработка кнопки Авто фарма
 toggleButton.MouseButton1Click:Connect(function()
     autoFarmEnabled = not autoFarmEnabled
     
@@ -149,7 +148,7 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Обработка кнопки Анти-АФК
+-- Обработка кнопки анти АФК
 antiAfkButton.MouseButton1Click:Connect(function()
     antiAfkEnabled = not antiAfkEnabled
     
@@ -162,10 +161,10 @@ antiAfkButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Цикл Анти-АФК: заставляет персонажа прыгать раз в 14 минут
+-- Цикл анти АФК
 task.spawn(function()
     while true do
-        task.wait(14 * 60) -- Ждем ровно 14 минут
+        task.wait(14 * 60)
         if antiAfkEnabled then
             local character = player.Character
             if character and character:FindFirstChild("Humanoid") then
@@ -175,7 +174,7 @@ task.spawn(function()
     end
 end)
 
--- Дополнительная защита Анти-АФК от встроенного кика Роблокса
+-- Дополнительная защита анти АФК от встроенного кика Роблокса
 player.Idled:Connect(function()
     if antiAfkEnabled then
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
